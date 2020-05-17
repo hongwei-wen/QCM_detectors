@@ -1,0 +1,336 @@
+---
+title: "Final Report"
+output: html_document
+---
+## Background & Goal
+Alchohols have different structures, and are used frequently in hygiene products and 
+cosmetics. Since some of them are harmful for people, successful detection of different 
+alchohol types is important and necessary.  
+
+In this study, five different types of alcohol are detected by five quartz crystal 
+microbalance (QCM) sensors with different structures. 
+The main goal of the study is to use measurement of the QCM sensors 
+to construct a data-driven model to classify five types of alchohol. 
+Moreover, we compare the accuracy of five QCM sensors and determine the best one. 
+
+
+## Data Description
+
+### Introduction of data source
+Five different QCM gas sensors are used, and five different gas measurements
+(1-octanol, 1-propanol, 2-butanol, 2- propanol and 1-isobutanol) are conducted in each of
+these sensors. A QCM is an electromechanical oscillator that contains a thin slice of 
+quartz crystal with chemical receptive material placed on its surface.
+The measurements of frequency reduction in the oscillation are our samples.
+There are two different channels in these QCM sensors. One of these channel includes 
+molecularly imprinted polymers (MIP), and the other includes nanoparticles (NP). 
+Diverse QCM sensor structures are obtained using different MIP and NP ratios.
+For each type of alchohol gas, we mix it and air with different ratio, 
+ranging from 0.799/0.201 to 0.400/0.6000. 
+
+### Data description
+For each QCM detector, we have ten measurements of frequency reduction and 
+and a five-dimension one-hot vector to show the type of achohol. The number of observations
+is 25 for each QCM detector. Now we briefly show several data from QCM10 dataset.
+
+```R
+>>head(QCM10)
+      `0.799_0.201` `0.799_0.201_1` `0.700_0.300` `0.700_0.300_1` `0.600_0.400` `0.600_0.400_1`
+          <dbl>           <dbl>         <dbl>           <dbl>         <dbl>           <dbl>
+1         -12.0           -11.0         -19.1           -17.3         -33.1           -28.4
+2         -12.2           -11.3         -22.3           -20.0         -39.8           -33.6
+3         -12.6           -11.7         -26.7           -23.3         -46.5           -38.7
+4         -13.8           -12.8         -30.6           -26.2         -52.3           -43.0
+5         -15.7           -13.9         -34.5           -28.6         -57.4           -46.3
+6         -58.4           -38.7         -83.6           -57.3        -110.            -76.8
+
+ 
+      `0.501_0.499` `0.501_0.499_1` `0.400_0.600` `0.400_0.600_1` `1-Octanol` `1-Propanol`
+          <dbl>           <dbl>         <dbl>           <dbl>         <dbl>        <dbl>
+1         -48.8           -40.8         -62.5           -50.8           1            0
+2         -56.9           -46.8         -73.3           -59.0           1            0
+3         -66.0           -53.5         -84.5           -67.2           1            0
+4         -73.8           -59.2         -94.4           -74.4           1            0
+5         -80.4           -63.5        -103.            -80.2           1            0
+6        -134.            -96.1        -171.           -124.            0            1
+
+        `2-Butanol` `2-propanol` `1-isobutanol`
+           <dbl>        <dbl>          <dbl>
+1           0            0              0
+2           0            0              0
+3           0            0              0
+4           0            0              0
+5           0            0              0
+6           0            0              0
+```
+
+
+## Explorative data analysis
+### Data preprocessing
+Convert five dataset into the form of dataframe and transform the one-hot vector into label.
+Also some other work such as renaming columns and variable.
+
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+library(readr)
+library(stringr)
+first_category_name = list.files("/Users/wenhongwei/Desktop/textbook/QCM_Sensor_Alcohol_Dataset") 
+dir = paste("/Users/wenhongwei/Desktop/textbook/QCM_Sensor_Alcohol_Dataset/",first_category_name,sep="")
+for(i in 1:length(dir)){
+  index = str_sub(first_category_name[i],1,-5)
+  data_index = data.frame(read_csv(dir[i]))
+  #print(names(data_index))
+  names(data_index) = c("ch1p0.8", "ch2p0.8", "ch1p0.7","ch2p0.7","ch1p0.6","ch2p0.6","ch1p0.5","ch2p0.5","ch1p0.4","ch2p0.4","Oct1","Pro1","But2","pro2","iso1")
+  data_index = mutate(data_index,labels = Oct1*1+Pro1*2+But2*3+pro2*4+iso1*5) %>% select(-(Oct1:iso1))
+  assign(index, data_index)
+  #print(head(get(index)))
+}
+```
+
+```{r}
+head(QCM10)
+```
+
+### Data exploring
+
+#### Different Ratios
+Based on measurement of QCM10, we summarize the average frequency reduction of channel 1
+for five types of alchohol with different gas ratio.
+```{r}
+diffratio = group_by(QCM10,labels) %>% summarize(m0.8=mean(ch1p0.8), m0.7=mean(ch1p0.7), m0.6=mean(ch1p0.6), m0.5=mean(ch1p0.5), m0.4=mean(ch1p0.4))
+diffratio["labels"] = c("Oct1","Pro1","But2","Pro2","Iso1")
+diffratio
+```
+
+
+Figure measurement of channel 1 in QCM10 :
+```{r}
+library("ggplot2")
+ggplot(diffratio)+
+  geom_point(aes(x=labels,y=m0.8,fill="m0.8"),size=1.5,shape=21,color="black")+ 
+  geom_point(aes(x=labels,y=m0.7,fill="m0.7"),size=1.5,shape=21)+
+  geom_point(aes(x=labels,y=m0.6,fill="m0.6"),size=1.5,shape=21)+
+  geom_point(aes(x=labels,y=m0.5,fill="m0.5"),size=1.5,shape=21)+
+  geom_point(aes(x=labels,y=m0.4,fill="m0.4"),size=1.5,shape=21)+
+  labs(x="Type of Alcohol",y="Channel_1",title= "Comparsion of different ratios",fill="")+
+  theme(plot.title = element_text(hjust = 0.5)) 
+```
+
+For each type of alcohol, different ratio corresponds to different levels of measurement.
+However two types of alcohol But2 and Iso1 have similar measurement for different alcohol/air ratio ranging from 0.4 to 0.8, which is difficult for differentiate them only according to channel 1.
+
+#### Different Channels
+Under the condition of same detector, we summarize the average frequency reduction for both
+two channel. 
+```{r}
+diffchannel = group_by(QCM10,labels) %>% summarize(m1p0.8=mean(ch1p0.8), m2p0.8=mean(ch2p0.8), m1p0.6=mean(ch1p0.6), m2p0.6=mean(ch2p0.6), m1p0.4=mean(ch1p0.4), m2p0.4=mean(ch2p0.4))
+diffchannel
+```
+
+Figure measurement of two channels in QCM10 :
+```{r}
+diffchannel["labels"] = c("Oct1","Pro1","But2","Pro2","Iso1")
+ggplot(diffchannel)+
+  geom_point(aes(x=labels,y=m1p0.8,fill="m1p0.8"),size=1,shape=21,color="black")+ 
+  geom_point(aes(x=labels,y=m2p0.8,fill="m2p0.8"),size=1,shape=21)+
+  geom_point(aes(x=labels,y=m1p0.6,fill="m1p0.6"),size=1,shape=21)+
+  geom_point(aes(x=labels,y=m2p0.6,fill="m2p0.6"),size=1,shape=21)+
+  geom_point(aes(x=labels,y=m1p0.4,fill="m1p0.4"),size=1,shape=21)+
+  geom_point(aes(x=labels,y=m2p0.4,fill="m2p0.4"),size=1,shape=21)+
+  labs(x="Type of Alcohol",y="Measurement",title= "Comparison of two channels",fill="")+
+  theme(plot.title = element_text(hjust = 0.5)) 
+```
+
+It seems that the trend of measurement of two channel is similar. Moreover, we find the difference between But2 and Iso1 in channel 2 is significant compared with channel 1, which helps to classify them by data both from two channels.  
+
+#### Different QCM Detectors
+Next we compare the result of different QCM detector with the same channel and same alchohol.
+
+```{r}
+qcm10ch1 = group_by(QCM10,labels) %>% summarize(m0.8=mean(ch1p0.8), m0.6=mean(ch1p0.6), m0.4=mean(ch1p0.4))
+qcm3ch1 = group_by(QCM3,labels) %>% summarize(m0.8=mean(ch1p0.8), m0.6=mean(ch1p0.6), m0.4=mean(ch1p0.4))
+qcm10_3ch1 = mutate(data.frame(qcm10ch1), qcm3m0.8 = data.frame(qcm3ch1)[,2], qcm3m0.6 = data.frame(qcm3ch1)[,3], qcm3m0.4 = data.frame(qcm3ch1)[,4])
+qcm10_3ch1
+```
+
+Figure measurement of two detectors:
+```{r}
+ggplot(qcm10_3ch1)+
+  geom_point(aes(x=labels,y=m0.8,fill="qcm10_0.8"),size=1,shape=21,color="black")+ 
+  geom_point(aes(x=labels,y=m0.6,fill="qcm10_0.6"),size=1,shape=21)+
+  geom_point(aes(x=labels,y=m0.4,fill="qcm10_0.4"),size=1,shape=21)+
+  geom_point(aes(x=labels,y=qcm3m0.8,fill="qcm3_0.8"),size=1,shape=21)+
+  geom_point(aes(x=labels,y=qcm3m0.6,fill="qcm3_0.6"),size=1,shape=21)+
+  geom_point(aes(x=labels,y=qcm3m0.4,fill="qcm3_0.4"),size=1,shape=21)+
+  labs(x="Type of Alcohol",y="Measurement",title= "Comparison of two Detector",fill="")+
+  theme(plot.title = element_text(hjust = 0.5)) 
+```
+
+The trends between QCM10 and QCM3 detectors are similar. Distinct measurement between 
+different types of alcohol gives detectors chance to classify correctly.
+
+## Models
+### Each QCM itself has one model
+For every QCM detector, we fit a random forest model with its dataset. Each dataset is splitted to training and test dataset with 0/7/0.3 ratio. We repeat the process 10 times. 
+```{r, warning=FALSE, message=FALSE}
+library(randomForest)
+acc_vec = rep(0,5)
+repeat_times = 10
+acc_vec_all = matrix(rep(0,repeat_times*5),ncol=5)
+for(j in 1:repeat_times){
+  for(i in 1:length(dir)){
+    index = str_sub(first_category_name[i],1,-5)
+    data_index = get(index)
+    data_index$labels = as.factor(data_index$labels)
+    set.seed(12)
+    train_sub = sample(nrow(data_index),7/10*nrow(data_index))
+    train_data = data_index[train_sub,]
+    test_data = data_index[-train_sub,]
+    model <- randomForest(labels~., data=train_data, importance=TRUE,proximity=TRUE)
+    #print(model$importance)
+    #varImpPlot(model, main = "variable importance")
+    test_hat_label <- predict(model,newdata=test_data)
+    table(test_data$labels,test_hat_label,dnn=c("Truth","Predict"))
+    acc = sum(test_data$labels==test_hat_label)/nrow(test_data)
+    acc_vec[i] = acc
+    }
+  acc_vec_all[j,1:5] = acc_vec
+}
+acc_vec_all
+```
+
+```{r}
+sapply(data.frame(acc_vec_all), mean, na.rm = T)  
+sapply(data.frame(acc_vec_all), var, na.rm = T)  
+```
+
+Each column represents the classfication accuracy of one detector on test set. Three QCM detectors(QCM10, QCM12, QCM3) achieve perfect prediction by its own random forest model. The results appear to be satisfying, but we want to want a big model to process data aggregated from five dataset because five models is not convenient in reality. The problem makes sense because maybe new data is from other QCM detector, not any of the five detectors we studied here. 
+
+### Model with aggregated dataset
+For building one model to predict data from five QCM dataset, we simply bind five QCM dataset together by column and obtain a large dataset. Then the large dataset are split with 0/7/0.3 ratio into training and test dataset. We fit one random forest model with the training set and predict the test data. 
+
+```{r}
+QCM_all = rbind(QCM3,QCM6,QCM7,QCM10,QCM12)
+QCM_all$labels = as.factor(QCM_all$labels)
+repeat_times = 10
+acc_vec_all = rep(0,repeat_times)
+for(j in 1:repeat_times){
+  train_sub = sample(nrow(QCM_all),7/10*nrow(QCM_all))
+  train_data = QCM_all[train_sub,]
+  test_data = QCM_all[-train_sub,]
+  model <- randomForest(labels~., data=train_data, importance=TRUE,proximity=TRUE)
+  #print(model$importance)
+  #varImpPlot(model, main = "variable importance")
+  test_hat_label <- predict(model,newdata=test_data)
+  table(test_data$labels,test_hat_label,dnn=c("Truth","Predict"))
+  acc_vec_all[j] = sum(test_data$labels==test_hat_label)/nrow(test_data)
+}
+varImpPlot(model, main = "variable importance")
+print(mean(acc_vec_all))
+print(var(acc_vec_all))
+```
+
+The result of naive concatenated dataset is not satisfying. In addition, the information of five QCM detectors is not included in data. Then we explore the reason why we cannot perfectly predict the class of alcohol.
+
+### Why Misclassify?
+
+Because we adopt the random forest algorithm, the predicted label depends on the majority votes of labels of the points which resides in the same leaf cell. Because the nearest neighbor of a point are the most possible ones residing in the same leaf cell as it, we explore labels of the nearest neighbors of misclassified point. 
+All Misclassification Examples in ten repeated experients:
+```{r}
+set.seed(1233)
+train_sub = sample(nrow(QCM_all),7/10*nrow(QCM_all))
+train_data = QCM_all[train_sub,]
+test_data = QCM_all[-train_sub,]
+model <- randomForest(labels~., data=train_data, importance=TRUE,proximity=TRUE)
+#print(model$importance)
+test_hat_label <- predict(model,newdata=test_data)
+table(test_data$labels,test_hat_label,dnn=c("Truth","Predict"))
+acc = sum(test_data$labels==test_hat_label)/nrow(test_data)
+varImpPlot(model, main = "variable importance")
+print(acc)
+false_points = test_data[test_data$labels!=test_hat_label,]
+dist_vec = rep(0,nrow(train_data))
+for(i in 1:nrow(false_points)){
+    print("Misclassified Point:")
+    print(false_points[i,])
+    print("Predicted Label:")
+    print(predict(model,false_points[i,])[1])
+    for (k in 1:nrow(train_data)){
+        dist_vec[k] = sum((false_points[i,1:10]-train_data[k,1:10])^2)
+    }
+    print("Labels of ten nearest neighbors of the misclassified point:")
+    print(train_data$labels[order(dist_vec)[1:10]])
+    print("Indices of ten nearest neighbors of the misclassified point:")
+    print(rownames(train_data[order(dist_vec)[1:10],]))
+}
+```
+
+From the output when random seed for splitting training and test dataset is fixed, we find "71"th and "81"th points are misclassified. Although the nearest neighbor of the $71$th point belongs to the same class as themselves(the first and second nearest neighbor of "71"th point are both belong to Class 5, the same as the "71"th point), a large proportion of nearest ten neighbors don't belong to the same class. Meanwhile, the ten points all have large possiblility to reside in the same leaf cell with the $71$th point when the parameter "node size" is set by $5$.
+
+For improving the accuracy, according to the knowledge of random forest, the correlation between different decision trees is preferably low. When the size of samples is fixed, we hope that the correlation  between feature space of different trees is low. Up to now, our features are only from measuring the alcohol/air gas mixed by different ratios. Apparently, these features are highly correlated. Consequently, some variables uncorrelated to mixed gas are desirable, such as the QCM dectectors's chemistry component, structure, sentitivity... 
+
+
+### Model with refined dataset
+Fortunately, we find some information related to the ratio of component in two channals of different QCM detectors. One of the channels includes molecularly imprinted polymers (MIP), and the other includes nanoparticles (NP).
+Add new columns MIP_ratio and NP_ratio into five QCM dataframes:
+
+table
+
+
+```{r}
+QCM3_more = mutate(QCM3,MIP_ratio = rep(1,25), NP_ratio=rep(1,25))
+QCM6_more = mutate(QCM3,MIP_ratio = rep(1,25), NP_ratio=rep(0,25))
+QCM7_more = mutate(QCM3,MIP_ratio = rep(1,25), NP_ratio=rep(0.5,25))
+QCM10_more = mutate(QCM3,MIP_ratio = rep(1,25), NP_ratio=rep(2,25))
+QCM12_more = mutate(QCM3,MIP_ratio = rep(0,25), NP_ratio=rep(1,25))
+QCM_all_more = rbind(QCM3_more,QCM6_more,QCM7_more,QCM10_more,QCM12_more)
+QCM_all_more$labels = as.factor(QCM_all_more$labels)
+head(QCM_all_more)
+```
+
+Fixing the same random seed as the above section, we fit one random forest model to the refined data.
+```{r}
+set.seed(1233)
+train_sub = sample(nrow(QCM_all_more),7/10*nrow(QCM_all_more))
+train_data = QCM_all_more[train_sub,]
+test_data = QCM_all_more[-train_sub,]
+model <- randomForest(labels~., data=train_data, importance=TRUE,proximity=TRUE)
+#print(model$importance)
+varImpPlot(model, main = "variable importance")
+test_hat_label <- predict(model,newdata=test_data)
+table(test_data$labels,test_hat_label,dnn=c("Truth","Predict"))
+acc = sum(test_data$labels==test_hat_label)/nrow(test_data)
+print(model$importance)
+print(acc)
+```
+
+The accuracy are improved from $94.74$ to $1.00$, a perfect result. However, from the above Variable Importance Figure, we find the variable importance index "MeanDecreaseAccuracy" and "MeanDecreaseGini" of features MIP_ratio and NP_ratio are both zero, which seems to indicate two variables are useless. But think carefully, this result is also reasonable. The type of detector should be independent of the type of alcohol you detect. 
+This improvements on accuracy benefits from the the uncorrelation between MIP_ratio and NP_ratio and other ten measurements. The new features decrease the correlation between decision trees. The following correlation figure shows the correlation between MIP_ratio (NP_ratio) and other features are nearly zero.
+
+```{r, message=FALSE}
+library(PerformanceAnalytics)
+MM = subset(QCM_all_more,select=-labels)
+chart.Correlation(MM,type = "upper", order = "hclust", tl.col = "black", pch=9)
+```
+
+Moreover, the model can be applied to data from new QCM detectors with different MIP and NP ratio, not merely limited to the five types of QCM detectors we studied here. 
+
+```{r}
+repeat_times = 10
+acc_vec_all = rep(0,repeat_times)
+for(j in 1:repeat_times){
+  train_sub = sample(nrow(QCM_all_more),7/10*nrow(QCM_all_more))
+  train_data = QCM_all_more[train_sub,]
+  test_data = QCM_all_more[-train_sub,]
+  model <- randomForest(labels~., data=train_data, importance=TRUE,proximity=TRUE)
+  #print(model$importance)
+  #varImpPlot(model, main = "variable importance")
+  test_hat_label <- predict(model,newdata=test_data)
+  table(test_data$labels,test_hat_label,dnn=c("Truth","Predict"))
+  acc_vec_all[j] = sum(test_data$labels==test_hat_label)/nrow(test_data)
+}
+print(mean(acc_vec_all))
+print(var(acc_vec_all))
+```
+
+Consequently, we obtain the perfect prediction results by combining the random forest model and feature engineering with the help of knowledge of chemistry. Treat ratio of the components of QCM detectors as features is an innovative attempt that has not been done before. 
