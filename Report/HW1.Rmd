@@ -26,7 +26,7 @@ There are two different channels in these QCM sensors. One of these channel incl
 molecularly imprinted polymers (MIP), and the other includes nanoparticles (NP). 
 Diverse QCM sensor structures are obtained using different MIP and NP ratios.
 For each type of alchohol gas, we mix it and air with different ratio, 
-ranging from 0.799/0.201 to 0.400/0.6000. 
+ranging from 0.799/0.201 to 0.400/0.6000. The data is available from UCI repository (https://archive.ics.uci.edu/ml/datasets/Alcohol+QCM+Sensor+Dataset#).
 
 ### Data description
 For each QCM detector, we have ten measurements of frequency reduction and 
@@ -267,14 +267,32 @@ for(i in 1:nrow(false_points)){
 
 From the output when random seed for splitting training and test dataset is fixed, we find "71"th and "81"th points are misclassified. Although the nearest neighbor of the $71$th point belongs to the same class as themselves(the first and second nearest neighbor of "71"th point are both belong to Class 5, the same as the "71"th point), a large proportion of nearest ten neighbors don't belong to the same class. Meanwhile, the ten points all have large possiblility to reside in the same leaf cell with the $71$th point when the parameter "node size" is set by $5$.
 
-For improving the accuracy, according to the knowledge of random forest, the correlation between different decision trees is preferably low. When the size of samples is fixed, we hope that the correlation  between feature space of different trees is low. Up to now, our features are only from measuring the alcohol/air gas mixed by different ratios. Apparently, these features are highly correlated. Consequently, some variables uncorrelated to mixed gas are desirable, such as the QCM dectectors's chemistry component, structure, sentitivity... 
+For improving the accuracy, according to the knowledge of random forest, the correlation between different decision trees is preferably low. When the size of samples is fixed, we hope that the correlation  between feature space of different trees is low. Up to now, our features are only from measuring the alcohol/air gas mixed by different ratios. Apparently, these features are highly correlated showed in the following figure. Consequently, some variables uncorrelated to mixed gas are desirable, such as the QCM dectectors's chemistry component, structure, sentitivity... 
 
+Correlation Figure:
+```{r, message=FALSE}
+library(PerformanceAnalytics)
+MM = subset(QCM_all,select=-labels)
+chart.Correlation(MM,type = "upper", order = "hclust", tl.col = "black", pch=9)
+```
 
 ### Model with refined dataset
 Fortunately, we find some information related to the ratio of component in two channals of different QCM detectors. One of the channels includes molecularly imprinted polymers (MIP), and the other includes nanoparticles (NP).
+
+Table of MIP and NP ratios used in QCM detectors:
+
+| Sensor name | MIP ratio | NP ratio
+| :-----| :-----| :-----
+|QCM3| 1| 1
+|QCM6| 1| 0
+|QCM7| 1| 0.5
+|QCM10| 1| 2
+|QCM12| 0| 1
+
+
 Add new columns MIP_ratio and NP_ratio into five QCM dataframes:
 
-table
+
 
 
 ```{r}
@@ -304,8 +322,9 @@ print(model$importance)
 print(acc)
 ```
 
-The accuracy are improved from $94.74$ to $1.00$, a perfect result. However, from the above Variable Importance Figure, we find the variable importance index "MeanDecreaseAccuracy" and "MeanDecreaseGini" of features MIP_ratio and NP_ratio are both zero, which seems to indicate two variables are useless. But think carefully, this result is also reasonable. The type of detector should be independent of the type of alcohol you detect. 
-This improvements on accuracy benefits from the the uncorrelation between MIP_ratio and NP_ratio and other ten measurements. The new features decrease the correlation between decision trees. The following correlation figure shows the correlation between MIP_ratio (NP_ratio) and other features are nearly zero.
+### Discussion about results
+The accuracy are improved from $94.74\%$ to $100\%$, a perfect result. However, from the above Variable Importance Figure, we find the variable importance index "MeanDecreaseAccuracy" and "MeanDecreaseGini" of features MIP_ratio and NP_ratio are both zero, which seems to indicate two variables are useless. But think carefully, this result is also reasonable. The type of detector should be independent of the type of alcohol you detect. 
+Furthermore, this improvements on accuracy benefits from the the uncorrelation between MIP_ratio and NP_ratio and other ten measurements. The new features decrease the correlation between decision trees. The following correlation figure shows the correlation between MIP_ratio (NP_ratio) and other features are nearly zero.
 
 ```{r, message=FALSE}
 library(PerformanceAnalytics)
@@ -313,7 +332,7 @@ MM = subset(QCM_all_more,select=-labels)
 chart.Correlation(MM,type = "upper", order = "hclust", tl.col = "black", pch=9)
 ```
 
-Moreover, the model can be applied to data from new QCM detectors with different MIP and NP ratio, not merely limited to the five types of QCM detectors we studied here. 
+Moreover, the model can be applied to data from new QCM detectors with different MIP and NP ratio, not merely limited to the five types of QCM detectors we studied here. At last, we repeat ten times to test the stability of prediction. 
 
 ```{r}
 repeat_times = 10
